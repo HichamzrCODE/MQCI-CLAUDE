@@ -1,0 +1,42 @@
+<<<<<<< HEAD
+<?php include '..\views\layout.php'; ?>
+
+<div class="container">
+    <h1 style="margin-top:30px ;">Connexion</h1>
+    <?php if (isset($error)): ?>
+        <div class="alert alert-danger"><?php echo $error; ?></div>
+    <?php endif; ?>
+    <form method="post" action="index.php?action=login">
+        <div class="form-group">
+            <label for="username">Nom d'utilisateur:</label>
+            <input type="text" class="form-control" id="username" name="username">
+        </div>
+        <div class="form-group">
+            <label for="password">Mot de passe:</label>
+            <input type="password" class="form-control" id="password" name="password">
+        </div>
+        <button type="submit" class="btn btn-primary">Se connecter</button>
+    </form>
+    
+=======
+<?php include '..\views\layout.php'; ?>
+
+<div class="container">
+    <h1 style="margin-top:30px ;">Connexion</h1>
+    <?php if (isset($error)): ?>
+        <div class="alert alert-danger"><?php echo $error; ?></div>
+    <?php endif; ?>
+    <form method="post" action="index.php?action=login">
+        <div class="form-group">
+            <label for="username">Nom d'utilisateur:</label>
+            <input type="text" class="form-control" id="username" name="username">
+        </div>
+        <div class="form-group">
+            <label for="password">Mot de passe:</label>
+            <input type="password" class="form-control" id="password" name="password">
+        </div>
+        <button type="submit" class="btn btn-primary">Se connecter</button>
+    </form>
+    
+>>>>>>> 4f8dbbb6b83eb9c6f755d57287033c7da885a3b1
+</div>
