@@ -1,0 +1,44 @@
+.autocomplete-wrapper {
+    position: relative;
+}
+.autocomplete-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 30;
+    min-width: 220px;
+    max-width: 350px;
+    background: #fff;
+    border: 1px solid #ccc;
+    max-height: 250px;
+    overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.09);
+    display: none;
+}
+.autocomplete-item {
+    padding: 7px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    background: #fff;
+    text-decoration: none;
+    color: #222;
+    display: block;
+    transition: background 0.15s, color 0.15s;
+}
+.autocomplete-item:last-child {
+    border-bottom: none;
+}
+.autocomplete-item:hover,
+.autocomplete-item.autocomplete-item-active {
+    background: #007bff;
+    color: #fff !important;
+}
+
+/* CETTE PARTIE EST LA CLEF : elle empêche tout parent de couper l'autocomplete */
+.table-responsive, .container, .custom-table-zone {
+    overflow: visible !important;
+}
+#devis-table {
+    margin-bottom: 0 !important;
+}
+/* PAS de max-height ni overflow-y: auto sur .custom-table-zone */
