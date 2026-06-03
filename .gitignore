@@ -1,0 +1,36 @@
+# ============================================================
+#  MQCI 2.0 — Fichiers à ne jamais versionner
+# ============================================================
+
+# Secrets et configuration locale
+.env
+licence.key
+
+# Sauvegardes de base de données
+/sauvegardes/
+*.sql
+
+# Logs
+/logs/*.log
+
+# Uploads utilisateurs (images, fichiers)
+/public/uploads/app/
+/public/uploads/temp/
+
+# Dépendances Composer
+/vendor/
+
+# Fichiers de debug et test
+/public/test_*.php
+/public/debug_*.php
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
