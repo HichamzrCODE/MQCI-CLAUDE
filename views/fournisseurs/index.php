@@ -27,7 +27,6 @@ require_once __DIR__ . '/../../includes/permissions.php';
                     <th style="min-width:110px;">Téléphone</th>
                     <?php if ($can_view_finance): ?>
                         <th style="min-width:90px;">Nb articles</th>
-                        <th style="min-width:110px;">Prix moyen</th>
                     <?php endif; ?>
                     <th style="width:1%;white-space:nowrap;">Actions</th>
                 </tr>
@@ -41,7 +40,6 @@ require_once __DIR__ . '/../../includes/permissions.php';
                         <td><?= $fournisseur['telephone'] ? htmlspecialchars($fournisseur['telephone']) : '<span class="text-muted">—</span>' ?></td>
                         <?php if ($can_view_finance): ?>
                             <td><?= (int)($fournisseur['nb_articles'] ?? 0) ?></td>
-                            <td><?= number_format($fournisseur['prix_moyen'] ?? 0, 0, ',', ' ') ?> FR</td>
                         <?php endif; ?>
                         <td class="actions-cell">
                             <div class="d-flex flex-nowrap gap-1">
@@ -51,6 +49,10 @@ require_once __DIR__ . '/../../includes/permissions.php';
                                 <?php if (hasPermission('fournisseurs', 'delete')): ?>
                                     <a href="index.php?action=fournisseurs/delete&id=<?= $fournisseur['id_fournisseurs']; ?>" class="btn btn-danger btn-sm px-2 py-0">X</a>
                                 <?php endif; ?>
+                                <a href="index.php?action=fournisseur_releve/show&id=<?= $fournisseur['id_fournisseurs'] ?>"
+                                        class="btn btn-warning btn-sm">
+                                            📋 Relevé fournisseur
+                                </a>
                             </div>
                         </td>
                     </tr>

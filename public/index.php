@@ -1,18 +1,37 @@
 <?php
-require __DIR__.'/../includes/licence_check.php';
+
+/**
+ * MQCI 2.0 — Point d'entrée unique
+ *
+ * Améliorations :
+ * - Chargement .env via phpdotenv (credentials hors du code)
+ * - Connexion PDO unique, partagée via $db globale
+ * - Vérifications de permission via hasPermission() sur toutes les routes
+ * - Plus de whitelist de noms d'utilisateurs hardcodés
+ * - Helper requireRole() et requirePermission() pour éviter les répétitions
+ * - Suppression de test_backup.php référencé (à effacer du dossier)
+ */
+
+// ─── 1. Chargement des dépendances Composer (.env inclus) ───────────────────
+require_once __DIR__ . '/../vendor/autoload.php';
+
+$dotenv = Dotenv\Dotenv::createImmutable(dirname(__DIR__));
+$dotenv->load();
+
+// ─── 2. Démarrage de la session ──────────────────────────────────────────────
+require_once __DIR__ . '/../includes/licence_check.php';
 session_start();
 
-// ✅ AJOUTER CECI IMMÉDIATEMENT APRÈS session_start()
 require_once __DIR__ . '/../includes/CsrfMiddleware.php';
+
 if (empty($_SESSION['csrf_token'])) {
     CsrfMiddleware::regenerate();
 }
 
-// Autoloading des classes
-spl_autoload_register(function ($classname) {
-    $paths = ['../models/', '../controllers/'];
-    foreach ($paths as $path) {
-        $file = $path . $classname . '.php';
+// ─── 3. Autoloading des classes métier ──────────────────────────────────────
+spl_autoload_register(function (string $classname): void {
+    foreach (['../models/', '../controllers/', '../includes/'] as $path) {
+        $file = __DIR__ . '/' . $path . $classname . '.php';
         if (file_exists($file)) {
             require_once $file;
             return;
@@ -32,6 +51,12 @@ try {
     );
 } catch (PDOException $e) {
     die("Erreur de connexion à la base de données : " . $e->getMessage());
+}
+
+// Rafraîchir l'activité de l'utilisateur connecté
+if (isset($_SESSION['user_id'])) {
+    $stmtActivity = $db->prepare("UPDATE users SET last_login = NOW() WHERE id_users = ?");
+    $stmtActivity->execute([$_SESSION['user_id']]);
 }
 
 // Routage principal
@@ -639,6 +664,12 @@ case 'livraisons/validate':
     $controller->validate((int)$id);
     exit();
 
+// REGISTER
+    case 'register':
+    $controller = new AuthController($db);
+    $viewData = $controller->register($_POST);
+    break;
+
 // --- FACTURES ---
 case 'factures':
 case 'factures/index':
@@ -726,38 +757,32 @@ case 'factures/validate':
         $viewData   = $controller->show((int)$id, $date_debut, $date_fin, $page);
         break;
 
-
-// --- FS (RELEVES FOURNISSEUR) ---
-case 'fs':
-    $controller = new FsReleveController($db);
-    $viewData = $controller->index();
-    break;
-case 'fs/create':
-    $controller = new FsReleveController($db);
-    $viewData = $controller->create($_POST);
-    break;
-case 'fs/edit':
-    if (!isset($_GET['id']) || !is_numeric($_GET['id'])) die("ID de relevé fournisseur invalide.");
-    $controller = new FsReleveController($db);
-    $viewData = $controller->edit((int)$_GET['id'], $_POST);
-    break;
-case 'fs/delete':
-    if (!isset($_GET['id']) || !is_numeric($_GET['id'])) die("ID de relevé fournisseur invalide.");
-    $controller = new FsReleveController($db);
-    $controller->delete((int)$_GET['id']);
-    exit();
-case 'fs/show':
-    if (!isset($_GET['id']) || !is_numeric($_GET['id'])) die("ID de relevé fournisseur invalide.");
-    $controller = new FsReleveController($db);
-    $viewData = $controller->show((int)$_GET['id']);
-    break;
-case 'fs/extrait':
+case 'fournisseur_releve/show':
     $id = $_GET['id'] ?? null;
+    if ($id === null || !is_numeric($id)) die("ID de fournisseur invalide.");
     $date_debut = $_GET['date_debut'] ?? null;
-    $date_fin = $_GET['date_fin'] ?? null;
-    if ($id === null || !is_numeric($id)) die("ID de relevé fournisseur invalide.");
-    $controller = new FsReleveController($db);
-    $viewData = $controller->extrait((int)$id, $date_debut, $date_fin);
+    $date_fin   = $_GET['date_fin']   ?? null;
+    $page       = (int)($_GET['page'] ?? 1);
+    $controller = new FournisseurReleveController($db);
+    $viewData   = $controller->show((int)$id, $date_debut, $date_fin, $page);
+    break;
+
+case 'fournisseur_releve':
+case 'fournisseur_releve/index':
+    $controller = new FournisseurReleveController($db);
+    $viewData   = $controller->index();
+    break;
+    
+case 'client_releve':
+case 'client_releve/index':
+    $controller = new ClientReleveController($db);
+    $viewData   = $controller->index();
+    break;
+
+case 'fournisseur_releve':
+case 'fournisseur_releve/index':
+    $controller = new FournisseurReleveController($db);
+    $viewData   = $controller->index();
     break;
 
     // --- VOITURE ---

@@ -33,7 +33,7 @@
 
                     <div class="mb-3">
                         <label for="username" class="form-label">Nom d'utilisateur <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="username" name="username" required>
+                        <input type="text" class="form-control" id="username" name="username" value="<?= htmlspecialchars($data['username'] ?? '') ?>"required>
                         <small class="text-muted">Utilisé pour se connecter</small>
                     </div>
 
@@ -52,22 +52,22 @@
 
                     <div class="mb-3">
                         <label for="nom" class="form-label">Nom <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="nom" name="nom" required>
+                        <input type="text" class="form-control" id="nom" name="nom" value="<?= htmlspecialchars($data['nom'] ?? '') ?>" required>
                     </div>
 
                     <div class="mb-3">
                         <label for="prenom" class="form-label">Prénom <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="prenom" name="prenom" required>
+                        <input type="text" class="form-control" id="prenom" name="prenom" value="<?= htmlspecialchars($data['prenom'] ?? '') ?>" required>
                     </div>
 
                     <div class="mb-3">
                         <label for="telephone" class="form-label">Téléphone <span class="text-danger">*</span></label>
-                        <input type="tel" class="form-control" id="telephone" name="telephone" required>
+                        <input type="tel" class="form-control" id="telephone" name="telephone" value="<?= htmlspecialchars($data['telephone'] ?? '') ?>" required>
                     </div>
 
                     <div class="mb-3">
                         <label for="succursale" class="form-label">Succursale </label>
-                        <input type="text" class="form-control" id="succursale" name="succursale">
+                        <input type="text" class="form-control" id="succursale" name="succursale" value="<?= htmlspecialchars($data['succursale'] ?? '') ?>">
                     </div>
 
                     <div class="mb-3">

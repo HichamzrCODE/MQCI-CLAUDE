@@ -1,133 +1,143 @@
-<?php include '../views/layout.php'; ?>
+<?php
+$pageTitle = "Gestion des Utilisateurs";
+include '../views/layout.php';
 
-<?php $pageTitle = "Gestion des Utilisateurs"; ?>
+$users   = $users   ?? [];
+$message = $message ?? ($_GET['message'] ?? null);
+$error   = $error   ?? ($_GET['error']   ?? null);
 
-<div class="page-header">
-    <h1><i class="fas fa-users-cog"></i> Gestion des Utilisateurs</h1>
-    <p class="page-description">Administrez les utilisateurs du système</p>
-</div>
+// Seuil "En ligne" : 15 minutes
+$ONLINE_THRESHOLD = 15 * 60;
+?>
 
-<?php if (isset($_GET['message'])): ?>
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="fas fa-check-circle"></i> <?= htmlspecialchars($_GET['message']) ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-<?php endif; ?>
+<div class="container mt-4">
 
-<div class="row mb-3">
-    <div class="col-md-6">
-        <h4>Liste des utilisateurs</h4>
-    </div>
-    <div class="col-md-6 text-end">
-        <a href="index.php?action=users/create" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Nouvel Utilisateur
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">Gestion des utilisateurs</h4>
+        <a href="index.php?action=users/create" class="btn btn-primary btn-sm">
+            + Nouvel utilisateur
         </a>
     </div>
-</div>
 
-<div class="card">
-    <div class="card-body">
-        <?php if (count($users) > 0): ?>
+    <?php if ($message): ?>
+        <div class="alert alert-success alert-dismissible fade show">
+            <?= htmlspecialchars($message) ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($error): ?>
+        <div class="alert alert-danger alert-dismissible fade show">
+            <?= htmlspecialchars($error) ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+
+    <div class="card">
+        <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-sm table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>ID</th>
-                            <th>Username</th>
-                            <th>Nom Complet</th>
+                            <th>Utilisateur</th>
+                            <th>Nom complet</th>
                             <th>Téléphone</th>
                             <th>Succursale</th>
                             <th>Rôle</th>
                             <th>Statut</th>
-                            <th>Connecté</th>
-                            <th>Actions</th>
+                            <th>Activité</th>
+                            <th>En ligne</th>
+                            <th class="text-end">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($users as $u): ?>
-                            <tr>
-                                <td>
-                                    <span class="badge bg-secondary"><?= $u['id_users'] ?></span>
-                                </td>
-                                <td>
-                                    <strong><?= htmlspecialchars($u['username']) ?></strong>
-                                </td>
-                                <td>
-                                    <?= htmlspecialchars($u['prenom'] . ' ' . $u['nom']) ?>
-                                </td>
-                                <td>
-                                    <i class="fas fa-phone"></i> <?= htmlspecialchars($u['telephone']) ?>
-                                </td>
-                                <td>
-                                    <?= htmlspecialchars($u['succursale']) ?>
-                                </td>
-                                <td>
-                                    <?php
-                                        $roleBadge = [
-                                            'admin' => 'danger',
-                                            'manager' => 'warning',
-                                            'user' => 'info'
-                                        ];
-                                        $color = $roleBadge[$u['role']] ?? 'secondary';
-                                    ?>
-                                    <span class="badge bg-<?= $color ?>">
-                                        <?= ucfirst($u['role']) ?>
+                        <?php if (!$users): ?>
+                            <tr><td colspan="9" class="text-center text-muted py-3">Aucun utilisateur.</td></tr>
+                        <?php endif; ?>
+
+                        <?php foreach ($users as $u):
+                            // Calcul "En ligne"
+                            $hasToken    = !empty($u['session_token']);
+                            $lastLogin   = $u['last_login'] ? strtotime($u['last_login']) : 0;
+                            $isOnline    = $hasToken && $lastLogin > (time() - $ONLINE_THRESHOLD);
+                            $isSelf      = ((int)$u['id_users'] === (int)$_SESSION['user_id']);
+
+                            // Dernière activité
+                            $lastActivity = $u['last_login']
+                                ? date('d/m/Y H:i', strtotime($u['last_login']))
+                                : 'Jamais';
+
+                            // Badges rôle
+                            $roleColors = ['admin' => 'danger', 'manager' => 'warning', 'user' => 'info'];
+                            $roleColor  = $roleColors[$u['role']] ?? 'secondary';
+                            $roleLabel  = ['admin' => 'Admin', 'manager' => 'Manager', 'user' => 'Utilisateur'];
+                        ?>
+                        <tr>
+                            <td>
+                                <strong><?= htmlspecialchars($u['username']) ?></strong>
+                                <?php if ($isSelf): ?>
+                                    <span class="badge bg-secondary ms-1" style="font-size:0.7rem;">Vous</span>
+                                <?php endif; ?>
+                            </td>
+                            <td><?= htmlspecialchars($u['prenom'] . ' ' . $u['nom']) ?></td>
+                            <td><?= htmlspecialchars($u['telephone']) ?></td>
+                            <td><?= htmlspecialchars($u['succursale'] ?? '—') ?></td>
+                            <td>
+                                <span class="badge bg-<?= $roleColor ?>">
+                                    <?= $roleLabel[$u['role']] ?? $u['role'] ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?php if ($u['status'] === 'actif'): ?>
+                                    <span class="badge bg-success">Actif</span>
+                                <?php else: ?>
+                                    <span class="badge bg-danger">Inactif</span>
+                                <?php endif; ?>
+                            </td>
+                            <td style="font-size:0.82rem; color:#6c757d;">
+                                <?= $lastActivity ?>
+                            </td>
+                            <td>
+                                <?php if ($isOnline): ?>
+                                    <span class="badge bg-success">
+                                        🟢 En ligne
                                     </span>
-                                </td>
-                                <td>
-                                    <?php if ($u['status'] === 'actif'): ?>
-                                        <span class="badge bg-success">Actif</span>
-                                    <?php else: ?>
-                                        <span class="badge bg-danger">Inactif</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <?php
-                                        $lastLogin = $u['last_login'] ? strtotime($u['last_login']) : 0;
-                                        $expiration = 30 * 60;
-                                        $isConnected = $u['session_token'] && $lastLogin > (time() - $expiration);
-                                    ?>
-                                    <?php if ($isConnected): ?>
-                                        <span class="badge bg-success">
-                                            <i class="fas fa-circle"></i> En ligne
-                                        </span>
-                                    <?php else: ?>
-                                        <span class="badge bg-secondary">Hors ligne</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <a href="index.php?action=users/edit&id=<?= $u['id_users'] ?>" 
-                                           class="btn btn-warning" title="Modifier">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <?php if ($isConnected && $u['id_users'] != $_SESSION['user_id']): ?>
-                                            <a href="index.php?action=users/disconnect&id=<?= $u['id_users'] ?>"
-                                               class="btn btn-secondary" title="Déconnecter"
-                                               onclick="return confirm('Déconnecter cet utilisateur ?')">
-                                                <i class="fas fa-sign-out-alt"></i>
-                                            </a>
-                                        <?php endif; ?>
-                                        <?php if ($u['id_users'] != $_SESSION['user_id']): ?>
-                                            <a href="index.php?action=users/delete&id=<?= $u['id_users'] ?>"
-                                               class="btn btn-danger" title="Supprimer"
-                                               onclick="return confirm('Supprimer cet utilisateur ?')">
-                                                <i class="fas fa-trash"></i>
-                                            </a>
-                                        <?php endif; ?>
-                                    </div>
-                                </td>
-                            </tr>
+                                <?php else: ?>
+                                    <span class="badge bg-secondary">Hors ligne</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="text-end">
+                                <a href="index.php?action=users/edit&id=<?= (int)$u['id_users'] ?>"
+                                   class="btn btn-warning btn-sm" title="Modifier">✏️</a>
+
+                                <?php if ($isOnline && !$isSelf): ?>
+                                    <a href="index.php?action=users/disconnect&id=<?= (int)$u['id_users'] ?>"
+                                       class="btn btn-secondary btn-sm"
+                                       title="Déconnecter"
+                                       onclick="return confirm('Déconnecter <?= htmlspecialchars($u['username']) ?> ?')">
+                                        🚪
+                                    </a>
+                                <?php endif; ?>
+
+                                <?php if (!$isSelf): ?>
+                                    <a href="index.php?action=users/delete&id=<?= (int)$u['id_users'] ?>"
+                                       class="btn btn-danger btn-sm"
+                                       title="Supprimer"
+                                       onclick="return confirm('Supprimer <?= htmlspecialchars($u['username']) ?> définitivement ?')">
+                                        🗑️
+                                    </a>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
-        <?php else: ?>
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle"></i> Aucun utilisateur trouvé.
-            </div>
-        <?php endif; ?>
+        </div>
+    </div>
+
+    <!-- Légende -->
+    <div class="mt-2 text-muted" style="font-size:0.82rem;">
+        🟢 En ligne = actif dans les 15 dernières minutes
     </div>
 </div>
-
-<?php include '../views/footer.php'; ?>

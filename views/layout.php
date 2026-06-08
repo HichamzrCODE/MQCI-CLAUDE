@@ -482,20 +482,26 @@ $breadcrumbPage = $labelByPrefix[$prefix] ?? $prefix;
     </div>
 
     <!-- SUIVI -->
-    <div class="sidebar-section <?= $isSectionActive(['fs','releve','dashboard']) ?>">
-        <div class="sidebar-title">📈 Suivi</div>
-        <nav class="nav flex-column">
-            <a class="nav-link <?= $isActive('fs') ?>" href="index.php?action=fs">
-                <i class="fas fa-receipt"></i><span>Relevé fournisseurs</span>
-            </a>
-            <a class="nav-link <?= $isActive('releve') ?>" href="index.php?action=releve">
-                <i class="fas fa-list-check"></i><span>Relevé clients</span>
-            </a>
-            <a class="nav-link <?= $isActive('dashboard') ?>" href="index.php?action=dashboard">
-                <i class="fas fa-chart-line"></i><span>Tableau de bord</span>
-            </a>
-        </nav>
-    </div>
+<div class="sidebar-section <?= $isSectionActive(['client_releve','fournisseur_releve','fs','releve','dashboard']) ?>">
+    <div class="sidebar-title">📈 Suivi</div>
+    <nav class="nav flex-column">
+        <a class="nav-link <?= $isActive('client_releve') ?>" href="index.php?action=client_releve/index">
+            <i class="fas fa-users"></i><span>Suivi clients</span>
+        </a>
+        <a class="nav-link <?= $isActive('fournisseur_releve') ?>" href="index.php?action=fournisseur_releve/index">
+            <i class="fas fa-truck"></i><span>Suivi fournisseurs</span>
+        </a>
+        <a class="nav-link <?= $isActive('releve') ?>" href="index.php?action=releve">
+            <i class="fas fa-list-check"></i><span>Relevés clients (ancien)</span>
+        </a>
+        <a class="nav-link <?= $isActive('fs') ?>" href="index.php?action=fs">
+            <i class="fas fa-receipt"></i><span>Relevés fournisseurs (ancien)</span>
+        </a>
+        <a class="nav-link <?= $isActive('dashboard') ?>" href="index.php?action=dashboard">
+            <i class="fas fa-chart-line"></i><span>Tableau de bord</span>
+        </a>
+    </nav>
+</div>
 
     <!-- LOGISTIQUE -->
     <div class="sidebar-section <?= $isSectionActive(['voiture']) ?>">

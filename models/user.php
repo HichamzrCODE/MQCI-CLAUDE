@@ -22,7 +22,7 @@ class User {
     public function getAll(): array {
         $stmt = $this->db->query(
             "SELECT id_users, username, nom, prenom, telephone, succursale, role, status,
-                    created_at, last_login, session_token 
+                    created_at, last_login, session_token
              FROM users ORDER BY created_at DESC"
         );
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -31,18 +31,18 @@ class User {
     public function create(array $data): int {
         $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
         $stmt = $this->db->prepare(
-            "INSERT INTO users (username, password, role, nom, prenom, telephone, succursale, status, created_at) 
+            "INSERT INTO users (username, password, role, nom, prenom, telephone, succursale, status, created_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())"
         );
         $stmt->execute([
             $data['username'],
             $hashedPassword,
-            $data['role'] ?? 'user',
+            $data['role']      ?? 'user',
             $data['nom'],
             $data['prenom'],
             $data['telephone'],
-            $data['succursale'],
-            $data['status'] ?? 'actif'
+            $data['succursale'] ?? '',
+            $data['status']    ?? 'actif',
         ]);
         return (int)$this->db->lastInsertId();
     }
@@ -58,7 +58,7 @@ class User {
             }
         }
 
-        if (isset($data['password']) && !empty($data['password'])) {
+        if (!empty($data['password'])) {
             $fields[] = "password = ?";
             $values[] = password_hash($data['password'], PASSWORD_DEFAULT);
         }
@@ -92,10 +92,22 @@ class User {
         return (bool)$stmt->fetchColumn();
     }
 
-    // ✅ CLEF : Gérer le session_token en BD
     public function setSessionToken(int $id, string $token): void {
-        $stmt = $this->db->prepare("UPDATE users SET session_token = ?, last_login = NOW() WHERE id_users = ?");
+        $stmt = $this->db->prepare(
+            "UPDATE users SET session_token = ?, last_login = NOW() WHERE id_users = ?"
+        );
         $stmt->execute([$token, $id]);
+    }
+
+    /**
+     * Rafraîchit last_login à chaque requête pour maintenir "En ligne"
+     * Appelé depuis index.php après vérification de session
+     */
+    public function refreshActivity(int $id): void {
+        $stmt = $this->db->prepare(
+            "UPDATE users SET last_login = NOW() WHERE id_users = ?"
+        );
+        $stmt->execute([$id]);
     }
 
     public function getSessionToken(int $id): ?string {
@@ -105,18 +117,29 @@ class User {
     }
 
     public function clearSessionToken(int $id): void {
-        $stmt = $this->db->prepare("UPDATE users SET session_token = NULL WHERE id_users = ?");
+        $stmt = $this->db->prepare(
+            "UPDATE users SET session_token = NULL WHERE id_users = ?"
+        );
         $stmt->execute([$id]);
     }
 
+    /**
+     * Un utilisateur est "En ligne" si :
+     * - Il a un session_token (non null)
+     * - Son last_login date de moins de 15 minutes
+     */
     public function isConnected(int $id): bool {
-        $user = $this->findById($id);
-        if (!$user || !$user['session_token']) {
+        $stmt = $this->db->prepare(
+            "SELECT session_token, last_login FROM users WHERE id_users = ?"
+        );
+        $stmt->execute([$id]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user || !$user['session_token'] || !$user['last_login']) {
             return false;
         }
-        $lastLogin = strtotime($user['last_login']);
-        $expiration = 30 * 60; // 30 minutes
-        return $lastLogin > (time() - $expiration);
+
+        $lastActivity = strtotime($user['last_login']);
+        return $lastActivity > (time() - 15 * 60); // 15 minutes
     }
 }
-?>

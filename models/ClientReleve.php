@@ -3,10 +3,6 @@ class ClientReleve {
     private $db;
     public function __construct(PDO $db) { $this->db = $db; }
 
-    /**
-     * Retourne toutes les lignes (devis + versements credit_lignes) pour un client,
-     * triées par date croissante, factures avant versements à date égale.
-     */
     public function getAllLignes(int $client_id, ?string $date_debut = null, ?string $date_fin = null): array {
         $where_devis = "d.client_id = :cid1";
         $where_vers  = "cr.client_id = :cid2 AND cl.versement > 0";
@@ -26,76 +22,82 @@ class ClientReleve {
         }
 
         $sql = "SELECT date_operation, reference, montant, versement, type FROM (
-                    SELECT d.date       AS date_operation,
-                           d.numero    AS reference,
-                           d.total     AS montant,
-                           0.00        AS versement,
-                           'facture'   AS type
-                    FROM devis d
-                    WHERE $where_devis
-
+                    SELECT d.date AS date_operation, d.numero AS reference,
+                           d.total AS montant, 0.00 AS versement, 'facture' AS type
+                    FROM devis d WHERE $where_devis
                     UNION ALL
-
                     SELECT cl.date_operation,
                            COALESCE(NULLIF(cl.numero_facture,''), cl.bc_client, '') AS reference,
-                           0.00        AS montant,
-                           cl.versement,
-                           'versement' AS type
+                           0.00 AS montant, cl.versement, 'versement' AS type
                     FROM credit_lignes cl
                     JOIN credit_releves cr ON cl.releve_id = cr.id
                     WHERE $where_vers
                 ) AS combined
-                ORDER BY date_operation ASC,
-                         CASE WHEN type = 'facture' THEN 0 ELSE 1 END ASC";
+                ORDER BY date_operation ASC, CASE WHEN type = 'facture' THEN 0 ELSE 1 END ASC";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /**
-     * Solde cumulé de toutes les opérations AVANT date_debut (solde d'ouverture de période).
-     */
     public function getSoldeOuverture(int $client_id, ?string $date_debut): float {
         if (!$date_debut) return 0.0;
-
         $sql = "SELECT COALESCE(SUM(montant - versement), 0) FROM (
                     SELECT d.total AS montant, 0.00 AS versement
-                    FROM devis d
-                    WHERE d.client_id = :cid1 AND d.date < :dd1
-
+                    FROM devis d WHERE d.client_id = :cid1 AND d.date < :dd1
                     UNION ALL
-
                     SELECT 0.00 AS montant, cl.versement
-                    FROM credit_lignes cl
-                    JOIN credit_releves cr ON cl.releve_id = cr.id
+                    FROM credit_lignes cl JOIN credit_releves cr ON cl.releve_id = cr.id
                     WHERE cr.client_id = :cid2 AND cl.versement > 0 AND cl.date_operation < :dd2
                 ) AS combined";
-
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':cid1' => $client_id, ':dd1' => $date_debut,
                         ':cid2' => $client_id, ':dd2' => $date_debut]);
         return (float)$stmt->fetchColumn();
     }
 
-    /**
-     * Solde global (toutes dates) pour un client.
-     */
     public function getTotalGeneral(int $client_id): float {
         $sql = "SELECT COALESCE(SUM(montant - versement), 0) FROM (
                     SELECT d.total AS montant, 0.00 AS versement
                     FROM devis d WHERE d.client_id = :cid1
-
                     UNION ALL
-
                     SELECT 0.00 AS montant, cl.versement
-                    FROM credit_lignes cl
-                    JOIN credit_releves cr ON cl.releve_id = cr.id
+                    FROM credit_lignes cl JOIN credit_releves cr ON cl.releve_id = cr.id
                     WHERE cr.client_id = :cid2 AND cl.versement > 0
                 ) AS combined";
-
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':cid1' => $client_id, ':cid2' => $client_id]);
         return (float)$stmt->fetchColumn();
+    }
+
+    /**
+     * Liste tous les clients avec leurs totaux (facturé, versé, solde)
+     */
+    public function getAllClientsAvecTotaux(): array {
+        $sql = "SELECT
+                    c.id_clients,
+                    c.nom,
+                    c.ville,
+                    c.telephone,
+                    c.type_client,
+                    COALESCE(dv.total_facture, 0)  AS total_facture,
+                    COALESCE(vr.total_verse, 0)    AS total_verse,
+                    COALESCE(dv.total_facture, 0) - COALESCE(vr.total_verse, 0) AS solde
+                FROM clients c
+                LEFT JOIN (
+                    SELECT client_id, SUM(total) AS total_facture
+                    FROM devis
+                    GROUP BY client_id
+                ) dv ON dv.client_id = c.id_clients
+                LEFT JOIN (
+                    SELECT cr.client_id, SUM(cl.versement) AS total_verse
+                    FROM credit_lignes cl
+                    JOIN credit_releves cr ON cl.releve_id = cr.id
+                    WHERE cl.versement > 0
+                    GROUP BY cr.client_id
+                ) vr ON vr.client_id = c.id_clients
+                ORDER BY c.nom ASC";
+
+        return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     }
 }

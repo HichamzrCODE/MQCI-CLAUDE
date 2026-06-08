@@ -1,21 +1,17 @@
 <?php
 require_once __DIR__ . '/../includes/permissions.php';
-require_once __DIR__ . '/../includes/Validator.php';
 require_once __DIR__ . '/../includes/CsrfMiddleware.php';
 require_once __DIR__ . '/../models/User.php';
 
 class UsersController {
     private User $userModel;
-    private PDO $db;
+    private PDO  $db;
 
     public function __construct(PDO $db) {
-        $this->db = $db;
+        $this->db        = $db;
         $this->userModel = new User($db);
     }
 
-    /**
-     * Vérifier accès admin
-     */
     private function checkAdmin(): void {
         if (!isset($_SESSION['user_id'])) {
             header('Location: index.php?action=login');
@@ -23,272 +19,203 @@ class UsersController {
         }
         if ($_SESSION['role'] !== 'admin') {
             http_response_code(403);
-            die("Accès refusé. Vous devez être admin.");
+            die("Accès refusé.");
         }
     }
 
-    /**
-     * Lister tous les utilisateurs
-     */
     public function index(): array {
         $this->checkAdmin();
-        
-        try {
-            $users = $this->userModel->getAll();
-        } catch (PDOException $e) {
-            $users = [];
-            $error = "Erreur lors du chargement des utilisateurs.";
-        }
-        
+
+        $users = $this->userModel->getAll();
+        $message = $_GET['message'] ?? null;
+        $error   = $_GET['error']   ?? null;
+
         return [
             'view' => 'users/index',
             'data' => [
-                'users' => $users,
-                'error' => $error ?? null,
-                'csrf_field' => CsrfMiddleware::field()
+                'users'      => $users,
+                'message'    => $message,
+                'error'      => $error,
+                'csrf_field' => CsrfMiddleware::field(),
             ]
         ];
     }
 
-    /**
-     * Créer un utilisateur
-     */
-    public function create($data): array {
+    public function create(array $data): array {
         $this->checkAdmin();
-        
-        $error = null;
+
+        $error   = null;
         $success = null;
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 CsrfMiddleware::verify();
-            } catch (Exception $e) {
-                return [
-                    'view' => 'users/create',
-                    'data' => [
-                        'error' => $e->getMessage(),
-                        'csrf_field' => CsrfMiddleware::field()
-                    ]
-                ];
-            }
 
-            // Validation
-            $username = trim($data['username'] ?? '');
-            $password = trim($data['password'] ?? '');
-            $password_confirm = trim($data['password_confirm'] ?? '');
-            $nom = trim($data['nom'] ?? '');
-            $prenom = trim($data['prenom'] ?? '');
-            $telephone = trim($data['telephone'] ?? '');
-            $succursale = trim($data['succursale'] ?? '');
-            $role = $data['role'] ?? 'user';
-            $status = $data['status'] ?? 'actif';
+                $username        = trim($data['username']         ?? '');
+                $password        = trim($data['password']         ?? '');
+                $password_confirm = trim($data['password_confirm'] ?? '');
+                $nom             = trim($data['nom']              ?? '');
+                $prenom          = trim($data['prenom']           ?? '');
+                $telephone       = trim($data['telephone']        ?? '');
+                $succursale      = trim($data['succursale']       ?? '');
+                $role            = $data['role']   ?? 'user';
+                $status          = $data['status'] ?? 'actif';
 
-            // Vérifications
-            if (empty($username) || empty($password) || empty($nom) || empty($prenom) || 
-                empty($telephone)) {
-                $error = "Tous les champs sont obligatoires.";
-            } elseif (strlen($username) < 3) {
-                $error = "Le nom d'utilisateur doit contenir au moins 3 caractères.";
-            } elseif (strlen($password) < 6) {
-                $error = "Le mot de passe doit contenir au moins 6 caractères.";
-            } elseif ($password !== $password_confirm) {
-                $error = "Les mots de passe ne correspondent pas.";
-            } elseif ($this->userModel->usernameExists($username)) {
-                $error = "Ce nom d'utilisateur existe déjà.";
-            } elseif (!in_array($role, ['user', 'manager', 'admin'])) {
-                $error = "Rôle invalide.";
-            } elseif (!in_array($status, ['actif', 'inactif'])) {
-                $error = "Statut invalide.";
-            } else {
-                try {
+                if (empty($username) || empty($password) || empty($nom) || empty($prenom) || empty($telephone)) {
+                    $error = "Tous les champs obligatoires doivent être remplis.";
+                } elseif (strlen($username) < 3) {
+                    $error = "Le nom d'utilisateur doit contenir au moins 3 caractères.";
+                } elseif (strlen($password) < 6) {
+                    $error = "Le mot de passe doit contenir au moins 6 caractères.";
+                } elseif ($password !== $password_confirm) {
+                    $error = "Les mots de passe ne correspondent pas.";
+                } elseif ($this->userModel->usernameExists($username)) {
+                    $error = "Ce nom d'utilisateur existe déjà.";
+                } elseif (!in_array($role, ['user', 'manager', 'admin'], true)) {
+                    $error = "Rôle invalide.";
+                } elseif (!in_array($status, ['actif', 'inactif'], true)) {
+                    $error = "Statut invalide.";
+                } else {
                     $userId = $this->userModel->create([
-                        'username' => $username,
-                        'password' => $password,
-                        'nom' => $nom,
-                        'prenom' => $prenom,
-                        'telephone' => $telephone,
+                        'username'   => $username,
+                        'password'   => $password,
+                        'nom'        => $nom,
+                        'prenom'     => $prenom,
+                        'telephone'  => $telephone,
                         'succursale' => $succursale,
-                        'role' => $role,
-                        'status' => $status
+                        'role'       => $role,
+                        'status'     => $status,
                     ]);
-                    $success = "Utilisateur créé avec succès ! ✅";
-                    
-                    // Log l'action
-                    $this->logAction("Création utilisateur ID: $userId ($username)");
-                } catch (PDOException $e) {
-                    $error = "Erreur lors de la création : " . $e->getMessage();
+                    $success = "Utilisateur créé avec succès !";
+                    $this->log("Création utilisateur #$userId ($username)");
                 }
+
+            } catch (Exception $e) {
+                $error = $e->getMessage();
             }
         }
 
         return [
             'view' => 'users/create',
             'data' => [
-                'error' => $error,
-                'success' => $success,
-                'csrf_field' => CsrfMiddleware::field()
+                'error'      => $error,
+                'success'    => $success,
+                'csrf_field' => CsrfMiddleware::field(),
             ]
         ];
     }
 
-    /**
-     * Éditer un utilisateur
-     */
-    public function edit(int $id, $data): array {
+    public function edit(int $id, array $data): array {
         $this->checkAdmin();
-        
+
         $user = $this->userModel->findById($id);
         if (!$user) {
             http_response_code(404);
             die("Utilisateur non trouvé.");
         }
 
-        $error = null;
+        $error   = null;
         $success = null;
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 CsrfMiddleware::verify();
-            } catch (Exception $e) {
-                return [
-                    'view' => 'users/edit',
-                    'data' => [
-                        'user' => $user,
-                        'error' => $e->getMessage(),
-                        'csrf_field' => CsrfMiddleware::field()
-                    ]
-                ];
-            }
 
-            $nom = trim($data['nom'] ?? '');
-            $prenom = trim($data['prenom'] ?? '');
-            $telephone = trim($data['telephone'] ?? '');
-            $succursale = trim($data['succursale'] ?? '');
-            $role = $data['role'] ?? 'user';
-            $status = $data['status'] ?? 'actif';
-            $password = trim($data['password'] ?? '');
+                $nom        = trim($data['nom']        ?? '');
+                $prenom     = trim($data['prenom']     ?? '');
+                $telephone  = trim($data['telephone']  ?? '');
+                $succursale = trim($data['succursale'] ?? '');
+                $role       = $data['role']   ?? 'user';
+                $status     = $data['status'] ?? 'actif';
+                $password   = trim($data['password']   ?? '');
 
-            if (empty($nom) || empty($prenom) || empty($telephone) || empty($succursale)) {
-                $error = "Tous les champs sont obligatoires.";
-            } elseif ($password && strlen($password) < 6) {
-                $error = "Le mot de passe doit contenir au moins 6 caractères.";
-            } elseif (!in_array($role, ['user', 'manager', 'admin'])) {
-                $error = "Rôle invalide.";
-            } elseif (!in_array($status, ['actif', 'inactif'])) {
-                $error = "Statut invalide.";
-            } else {
-                try {
-                    $updateData = [
-                        'nom' => $nom,
-                        'prenom' => $prenom,
-                        'telephone' => $telephone,
-                        'succursale' => $succursale,
-                        'role' => $role,
-                        'status' => $status
-                    ];
-                    if (!empty($password)) {
-                        $updateData['password'] = $password;
-                    }
-                    
+                if (empty($nom) || empty($prenom) || empty($telephone)) {
+                    $error = "Nom, prénom et téléphone sont obligatoires.";
+                } elseif ($password && strlen($password) < 6) {
+                    $error = "Le mot de passe doit contenir au moins 6 caractères.";
+                } elseif (!in_array($role, ['user', 'manager', 'admin'], true)) {
+                    $error = "Rôle invalide.";
+                } elseif (!in_array($status, ['actif', 'inactif'], true)) {
+                    $error = "Statut invalide.";
+                } else {
+                    $updateData = compact('nom', 'prenom', 'telephone', 'succursale', 'role', 'status');
+                    if ($password) $updateData['password'] = $password;
+
                     $this->userModel->update($id, $updateData);
-                    $success = "Utilisateur mis à jour avec succès ! ✅";
-                    
-                    // Log l'action
-                    $this->logAction("Modification utilisateur ID: $id");
-                    
+                    $success = "Utilisateur mis à jour avec succès !";
+                    $this->log("Modification utilisateur #$id");
                     $user = $this->userModel->findById($id);
-                } catch (PDOException $e) {
-                    $error = "Erreur lors de la mise à jour : " . $e->getMessage();
                 }
+
+            } catch (Exception $e) {
+                $error = $e->getMessage();
             }
         }
 
         return [
             'view' => 'users/edit',
             'data' => [
-                'user' => $user,
-                'error' => $error,
-                'success' => $success,
-                'csrf_field' => CsrfMiddleware::field()
+                'user'       => $user,
+                'error'      => $error,
+                'success'    => $success,
+                'csrf_field' => CsrfMiddleware::field(),
             ]
         ];
     }
 
-    /**
-     * Supprimer un utilisateur
-     */
     public function delete(int $id): void {
         $this->checkAdmin();
-        
-        // Vérification de sécurité
-        if ($id === $_SESSION['user_id']) {
+
+        if ($id === (int)$_SESSION['user_id']) {
             header('Location: index.php?action=users&error=Vous ne pouvez pas supprimer votre propre compte');
             exit();
         }
 
         if ($this->userModel->exists($id)) {
-            try {
-                $user = $this->userModel->findById($id);
-                $this->userModel->delete($id);
-                
-                // Log l'action
-                $this->logAction("Suppression utilisateur ID: $id (" . $user['username'] . ")");
-                
-                header('Location: index.php?action=users&message=Utilisateur supprimé avec succès');
-            } catch (PDOException $e) {
-                header('Location: index.php?action=users&error=Erreur lors de la suppression');
-            }
+            $user = $this->userModel->findById($id);
+            $this->userModel->delete($id);
+            $this->log("Suppression utilisateur #$id (" . $user['username'] . ")");
+            header('Location: index.php?action=users&message=Utilisateur supprimé avec succès');
         } else {
             header('Location: index.php?action=users&error=Utilisateur non trouvé');
         }
         exit();
     }
 
-    /**
-     * Déconnecter un utilisateur
-     */
     public function disconnect(int $id): void {
         $this->checkAdmin();
-        
-        // Vérification de sécurité
-        if ($id === $_SESSION['user_id']) {
-            header('Location: index.php?action=users&error=Vous ne pouvez pas déconnecter votre propre session');
+
+        if ($id === (int)$_SESSION['user_id']) {
+            header('Location: index.php?action=users&error=Vous ne pouvez pas vous déconnecter vous-même');
             exit();
         }
 
-        try {
-            if ($this->userModel->exists($id)) {
-                $user = $this->userModel->findById($id);
-                $this->userModel->clearSessionToken($id);
-                
-                // Log l'action
-                $this->logAction("Déconnexion forcée utilisateur ID: $id (" . $user['username'] . ")");
-                
-                header('Location: index.php?action=users&message=Utilisateur déconnecté avec succès');
-            } else {
-                header('Location: index.php?action=users&error=Utilisateur non trouvé');
-            }
-        } catch (PDOException $e) {
-            header('Location: index.php?action=users&error=Erreur lors de la déconnexion');
+        if ($this->userModel->exists($id)) {
+            $user = $this->userModel->findById($id);
+            $this->userModel->clearSessionToken($id);
+            $this->log("Déconnexion forcée #$id (" . $user['username'] . ")");
+            header('Location: index.php?action=users&message=Utilisateur déconnecté avec succès');
+        } else {
+            header('Location: index.php?action=users&error=Utilisateur non trouvé');
         }
         exit();
     }
 
-    /**
-     * Logger une action administrative
-     */
-    private function logAction(string $action): void {
-        // Vous pouvez implémenter un vrai système de logs ici
-        // Pour l'instant, on peut juste écrire dans un fichier de log
-        $logFile = __DIR__ . '/../logs/admin.log';
-        if (!is_dir(dirname($logFile))) {
-            mkdir(dirname($logFile), 0755, true);
+    private function log(string $action): void {
+        $logDir  = __DIR__ . '/../logs';
+        $logFile = $logDir . '/admin.log';
+
+        if (!is_dir($logDir)) {
+            mkdir($logDir, 0755, true);
         }
-        
-        $timestamp = date('Y-m-d H:i:s');
-        $adminUsername = $_SESSION['username'] ?? 'UNKNOWN';
-        $logMessage = "[$timestamp] Admin: $adminUsername - $action\n";
-        
-        file_put_contents($logFile, $logMessage, FILE_APPEND);
+
+        $line = sprintf(
+            "[%s] Admin: %s — %s\n",
+            date('Y-m-d H:i:s'),
+            $_SESSION['username'] ?? 'UNKNOWN',
+            $action
+        );
+
+        file_put_contents($logFile, $line, FILE_APPEND | LOCK_EX);
     }
 }
