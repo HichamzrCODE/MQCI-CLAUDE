@@ -815,9 +815,9 @@ case 'fournisseur_releve/index':
         break;
 
 
-        
 // SAUVEGARDE
-    case 'sauvegarde':
+case 'sauvegarde':
+case 'sauvegarde':
     if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') die("Accès refusé.");
     $controller = new SauvegardeController($db);
     $controller->index();
@@ -836,6 +836,14 @@ case 'sauvegarde/download':
     $controller = new SauvegardeController($db);
     $controller->download($file);
     exit();
+
+case 'sauvegarde/delete':
+    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') die("Accès refusé.");
+    $file = $_GET['file'] ?? '';
+    $controller = new SauvegardeController($db);
+    $controller->delete($file);
+    exit();
+
 
 
     // --- MOUVEMENTS DE STOCK ---
